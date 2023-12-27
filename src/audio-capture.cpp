@@ -172,9 +172,6 @@ bool AudioCapture::Tick(const MSG &msg)
 {
 	bool shutdown = false;
 
-	bool success;
-	DWORD code;
-
 	switch (msg.message) {
 	case CaptureEvents::Shutdown:
 		debug("shutting down");
@@ -376,7 +373,7 @@ static void audio_capture_destroy(void *data)
 
 static bool mode_callback(obs_properties_t *ps, obs_property_t *p, obs_data_t *settings)
 {
-	int mode = obs_data_get_int(settings, SETTING_MODE);
+	long long mode = obs_data_get_int(settings, SETTING_MODE);
 
 	p = obs_properties_get(ps, SETTING_EXECUTABLE_LIST);
 	obs_property_set_visible(p, mode == MODE_SESSION);

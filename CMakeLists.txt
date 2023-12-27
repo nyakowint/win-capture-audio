@@ -24,10 +24,8 @@ execute_process(
 
 configure_file(
     src/plugin-macros.hpp.in
-    ${CMAKE_SOURCE_DIR}/src/plugin-macros.generated.hpp
+    src/plugin-macros.generated.hpp
 )
-
-find_package(libobs REQUIRED)
 
 set(win-capture-audio_SOURCES
     src/plugin.cpp
@@ -40,32 +38,8 @@ add_library(win-capture-audio MODULE ${win-capture-audio_SOURCES})
 target_link_libraries(win-capture-audio libobs dwmapi psapi ksuser mmdevapi mfplat)
 
 set_property(TARGET win-capture-audio PROPERTY CXX_STANDARD 23)
-target_include_directories(win-capture-audio PUBLIC ${CMAKE_SOURCE_DIR}/deps/wil/include)
+target_include_directories(win-capture-audio PUBLIC deps/wil/include)
 
-add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
-    COMMAND if $<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>==1 (
-        "${CMAKE_COMMAND}" -E make_directory
-            "${RELEASE_DIR}/data/obs-plugins/${CMAKE_PROJECT_NAME}"
-            "${RELEASE_DIR}/obs-plugins/${ARCH_NAME}"
-    )
-
-    COMMAND if $<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>==1 (
-        "${CMAKE_COMMAND}" -E copy_directory
-            "${PROJECT_SOURCE_DIR}/data"
-            "${RELEASE_DIR}/data/obs-plugins/${CMAKE_PROJECT_NAME}"
-    )
-
-    COMMAND if $<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>==1 (
-        "${CMAKE_COMMAND}" -E copy
-            "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>"
-            "${RELEASE_DIR}/obs-plugins/${ARCH_NAME}"
-    )
-
-    COMMAND if $<CONFIG:RelWithDebInfo>==1 (
-        "${CMAKE_COMMAND}" -E copy
-            "$<TARGET_FILE_BASE_NAME:${CMAKE_PROJECT_NAME}>.pdb"
-            "${RELEASE_DIR}/obs-plugins/${ARCH_NAME}"
-    )
-
-    VERBATIM
-)
+# cmake-format: off
+set_target_properties_obs(win-capture-audio PROPERTIES FOLDER plugins PREFIX "")
+# cmake-format: on

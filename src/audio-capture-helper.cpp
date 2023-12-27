@@ -130,8 +130,8 @@ void AudioCaptureHelper::Capture()
 
 	bool shutdown = false;
 	while (!shutdown) {
-		auto event_id = WaitForMultipleObjects(events.size(), events[0].addressof(), FALSE,
-						       INFINITE);
+		auto event_id = WaitForMultipleObjects((DWORD)events.size(), events[0].addressof(),
+						       FALSE, INFINITE);
 
 		switch (event_id) {
 		case HelperEvents::PacketReady:

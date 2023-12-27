@@ -10,6 +10,7 @@
 #include <memory>
 #include <unordered_map>
 #include <set>
+#include <optional>
 
 #include <wil/com.h>
 #include <wrl/implements.h>

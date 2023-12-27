@@ -167,7 +167,7 @@ void Mixer::SubmitPacket(UINT64 timestamp, float *data, UINT32 num_frames)
 static void CALLBACK post_tick(PVOID param, BOOLEAN)
 {
 	auto worker_tid = reinterpret_cast<intptr_t>(param);
-	PostThreadMessageW(worker_tid, MixerEvents::Tick, NULL, NULL);
+	PostThreadMessageW((DWORD)worker_tid, MixerEvents::Tick, NULL, NULL);
 }
 
 Mixer::Mixer(obs_source_t *source, WAVEFORMATEX format) : source{source}, format{format}
