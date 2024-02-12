@@ -530,6 +530,19 @@ void AudioCapture::FillActiveSessionList(obs_property_t *session_list, obs_prope
 	obs_data_release(settings);
 }
 
+static bool session_refresh_callback(obs_properties_t *ps, obs_property_t *p, void *data)
+{
+	auto *ctx = static_cast<AudioCapture *>(data);
+
+	auto *active_session_list = obs_properties_get(ps, SETTING_ACTIVE_SESSION_LIST);
+	auto *active_session_add = obs_properties_get(ps, SETTING_ACTIVE_SESSION_ADD);
+
+	obs_property_list_clear(active_session_list);
+	ctx->FillActiveSessionList(active_session_list, active_session_add);
+
+	return true;
+}
+
 static obs_properties_t *audio_capture_properties(void *data)
 {
 	auto *ctx = static_cast<AudioCapture *>(data);
@@ -567,6 +580,8 @@ static obs_properties_t *audio_capture_properties(void *data)
 	auto *active_session_add =
 		obs_properties_add_button(active_session_group, SETTING_ACTIVE_SESSION_ADD,
 					  TEXT_ACTIVE_SESSION_ADD, session_add_callback);
+
+	auto *active_session_refresh = obs_properties_add_button(active_session_group, "Refresh", "Attempt to refresh sessions", session_refresh_callback);
 
 	ctx->FillActiveSessionList(active_session_list, active_session_add);
 
