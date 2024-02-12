@@ -543,6 +543,13 @@ static bool session_refresh_callback(obs_properties_t *ps, obs_property_t *p, vo
 	return true;
 }
 
+static bool force_update_callback(obs_properties_t *ps, obs_property_t *p, void *data)
+{
+	auto *ctx = static_cast<AudioCapture *>(data);
+	audio_capture_update(ctx, obs_source_get_settings(ctx->GetSource()));
+	return true;
+}
+
 static obs_properties_t *audio_capture_properties(void *data)
 {
 	auto *ctx = static_cast<AudioCapture *>(data);
@@ -581,7 +588,8 @@ static obs_properties_t *audio_capture_properties(void *data)
 		obs_properties_add_button(active_session_group, SETTING_ACTIVE_SESSION_ADD,
 					  TEXT_ACTIVE_SESSION_ADD, session_add_callback);
 
-	auto *active_session_refresh = obs_properties_add_button(active_session_group, "Refresh", "Attempt to refresh sessions", session_refresh_callback);
+	auto *active_session_refresh = obs_properties_add_button(active_session_group, "Refresh", "Attempt refresh sessions", session_refresh_callback);
+	auto *force_update = obs_properties_add_button(ps, "ForceUpdate", "Force update", force_update_callback);
 
 	ctx->FillActiveSessionList(active_session_list, active_session_add);
 
