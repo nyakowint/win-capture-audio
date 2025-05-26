@@ -50,7 +50,7 @@
 /* clang-format on */
 
 namespace CaptureEvents {
-enum CaptureEvents { Shutdown = WM_USER, Update, SessionAdded, SessionExpired };
+enum CaptureEvents { Shutdown = WM_USER, Update, SessionAdded, SessionExpired, ServiceRestarted };
 }
 
 enum mode { MODE_SESSION, MODE_HOTKEY };

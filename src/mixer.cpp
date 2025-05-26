@@ -1,12 +1,15 @@
 #include "mixer.hpp"
 #include "format-conversion.hpp"
 #include "wil/result_macros.h"
+#include <algorithm>
 #include <basetsd.h>
 #include <memory>
 #include <processthreadsapi.h>
 #include <threadpoollegacyapiset.h>
 #include <winbase.h>
 #include <winuser.h>
+
+using std::min;
 
 template<typename T> T Mixer::RoundToNearest(T x, T m)
 {
@@ -76,7 +79,8 @@ std::size_t Mixer::TimestampToMixOffset(UINT64 timestamp)
 	if (timestamp < mix_timestamp)
 		return 0;
 
-	return min(mix.size() / format.nChannels, DurationToFrames(timestamp - mix_timestamp));
+	auto frames = DurationToFrames(timestamp - mix_timestamp);
+	return (frames < mix.size() / format.nChannels) ? frames : mix.size() / format.nChannels;
 }
 
 std::tuple<std::size_t, std::size_t> Mixer::CalculateCutoff(UINT64 timestamp)

@@ -3,6 +3,7 @@
 #include <thread>
 #include <queue>
 #include <vector>
+#include <algorithm>
 
 #include <windows.h>
 #include <wil/resource.h>

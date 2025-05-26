@@ -32,29 +32,34 @@ DeviceWatcher::DeviceWatcher(std::wstring device_id, wil::com_ptr<IMMDevice> dev
 	  worker_tid{worker_tid},
 	  session_notification_client{worker_tid}
 {
-	THROW_IF_FAILED(device->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, NULL,
+	try {
+		THROW_IF_FAILED(device->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, NULL,
 					 manager2.put_void()));
 
-	THROW_IF_FAILED(manager2->RegisterSessionNotification(&session_notification_client));
+		THROW_IF_FAILED(manager2->RegisterSessionNotification(&session_notification_client));
 
-	THROW_IF_FAILED(manager2->GetSessionEnumerator(enumerator.put()));
+		THROW_IF_FAILED(manager2->GetSessionEnumerator(enumerator.put()));
 
-	int num_sessions = 0;
-	THROW_IF_FAILED(enumerator->GetCount(&num_sessions));
+		int num_sessions = 0;
+		THROW_IF_FAILED(enumerator->GetCount(&num_sessions));
 
-	for (int i = 0; i < num_sessions; ++i) {
-		wil::com_ptr<IAudioSessionControl> session;
-		THROW_IF_FAILED(enumerator->GetSession(i, session.put()));
-		session->AddRef();
-
-		AudioSessionState state;
-		THROW_IF_FAILED(session->GetState(&state));
-
-		if (state != AudioSessionStateExpired) {
+		for (int i = 0; i < num_sessions; ++i) {
+			wil::com_ptr<IAudioSessionControl> session;
+			THROW_IF_FAILED(enumerator->GetSession(i, session.put()));
 			session->AddRef();
-			PostThreadMessageA(worker_tid, SessionEvents::SessionAdded,
+
+			AudioSessionState state;
+			THROW_IF_FAILED(session->GetState(&state));
+
+			if (state != AudioSessionStateExpired) {
+				session->AddRef();
+				PostThreadMessageA(worker_tid, SessionEvents::SessionAdded,
 					   reinterpret_cast<WPARAM>(session.get()), NULL);
+			}
 		}
+	} catch (wil::ResultException e) {
+		error("DeviceWatcher initialization error: %s", e.what());
+		PostThreadMessageA(worker_tid, SessionEvents::ServiceRestarted, NULL, NULL);
 	}
 }
 
@@ -67,35 +72,40 @@ SessionWatcher::SessionWatcher(DWORD worker_tid,
 			       const wil::com_ptr<IAudioSessionControl> &session_control)
 	: session_control{session_control}
 {
-	wil::unique_cotaskmem_string session_id_raw;
-	THROW_IF_FAILED(GetSessionControl2()->GetSessionIdentifier(session_id_raw.put()));
+	try {
+		wil::unique_cotaskmem_string session_id_raw;
+		THROW_IF_FAILED(GetSessionControl2()->GetSessionIdentifier(session_id_raw.put()));
 
-	session_id = session_id_raw.get();
+		session_id = session_id_raw.get();
 
-	THROW_IF_FAILED(GetSessionControl2()->GetProcessId(&pid));
+		THROW_IF_FAILED(GetSessionControl2()->GetProcessId(&pid));
 
-	notification_client.emplace(worker_tid, SessionKey(pid, session_id));
+		notification_client.emplace(worker_tid, SessionKey(pid, session_id));
 
-	THROW_IF_FAILED(
-		session_control->RegisterAudioSessionNotification(&notification_client.value()));
+		THROW_IF_FAILED(
+			session_control->RegisterAudioSessionNotification(&notification_client.value()));
 
-	wil::unique_process_handle session_process{
-		OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)};
+		wil::unique_process_handle session_process{
+			OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)};
 
-	if (session_process.get() == NULL) {
-		executable = std::string("unknown");
-		return;
+		if (session_process.get() == NULL) {
+			executable = std::string("unknown");
+			return;
+		}
+
+		wchar_t name_buf[MAX_PATH] = {'\0'};
+		DWORD length = GetProcessImageFileNameW(session_process.get(), name_buf, MAX_PATH - 1);
+
+		auto num_chars = WideCharToMultiByte(CP_UTF8, 0, name_buf, -1, NULL, 0, NULL, NULL);
+		std::string executable_path(num_chars - 1, '\0');
+		WideCharToMultiByte(CP_UTF8, 0, name_buf, -1, &executable_path[0], num_chars, NULL, NULL);
+
+		executable = executable_path.substr(executable_path.find_last_of("\\") + 1);
+		debug("registered new session: [%d] %s", pid, executable.c_str());
+	} catch (wil::ResultException e) {
+		error("SessionWatcher initialization error: %s", e.what());
+		PostThreadMessageA(worker_tid, SessionEvents::ServiceRestarted, NULL, NULL);
 	}
-
-	wchar_t name_buf[MAX_PATH] = {'\0'};
-	DWORD length = GetProcessImageFileNameW(session_process.get(), name_buf, MAX_PATH - 1);
-
-	auto num_chars = WideCharToMultiByte(CP_UTF8, 0, name_buf, -1, NULL, 0, NULL, NULL);
-	std::string executable_path(num_chars - 1, '\0');
-	WideCharToMultiByte(CP_UTF8, 0, name_buf, -1, &executable_path[0], num_chars, NULL, NULL);
-
-	executable = executable_path.substr(executable_path.find_last_of("\\") + 1);
-	debug("registered new session: [%d] %s", pid, executable.c_str());
 }
 
 SessionWatcher::~SessionWatcher()
@@ -291,6 +301,10 @@ void SessionMonitor::Run()
 		case SessionEvents::SessionExpired:
 			RemoveSession(msg);
 			break;
+
+		case SessionEvents::ServiceRestarted:
+			Reset();
+			break;
 		}
 	}
 
@@ -339,4 +353,10 @@ std::unordered_map<SessionKey, std::string> SessionMonitor::GetSessions()
 {
 	auto lock = sessions_lock.lock();
 	return sessions_list;
+}
+
+void SessionMonitor::Reset() {
+	debug("Audio service restarted, reinitializing session/device tracking");
+	UnInit();
+	Init();
 }

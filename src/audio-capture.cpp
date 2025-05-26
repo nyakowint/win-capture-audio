@@ -6,6 +6,7 @@
 #include <format>
 #include <set>
 #include <unordered_map>
+#include <algorithm>
 
 #include <windows.h>
 #include <stringapiset.h>
@@ -179,12 +180,16 @@ bool AudioCapture::Tick(const MSG &msg)
 	case CaptureEvents::Shutdown:
 		debug("shutting down");
 		shutdown = true;
-
 		break;
 
 	case CaptureEvents::Update:
 	case CaptureEvents::SessionAdded:
 	case CaptureEvents::SessionExpired:
+		WorkerUpdate();
+		break;
+
+	case CaptureEvents::ServiceRestarted:
+		debug("Audio service restarted, refreshing capture list");
 		WorkerUpdate();
 		break;
 

@@ -27,6 +27,7 @@ enum SessionEvents {
 	DeviceRemoved,
 	SessionAdded,
 	SessionExpired,
+	ServiceRestarted,
 };
 }
 
@@ -233,6 +234,8 @@ private:
 
 	void Run();
 	void SafeRun();
+
+	void Reset();
 
 	SessionMonitor();
 
